@@ -1,7 +1,4 @@
-```markdown
-# Project Title
-
-🚀 **Welcome to PetFinderPi!** 🚀
+## 🐾 **Welcome to PetFinderPi!** 🐾
 
 PetFinderPi is an innovative project designed to assist in the timely location and rescue of lost pets, with a primary focus on dogs and cats. This cutting-edge solution integrates a modular design, harnessing the capabilities of Python and the Raspberry Pi ecosystem to create an efficient and versatile system.
 
@@ -76,15 +73,4 @@ Before you start, make sure you have:
 
 ## License
 
-This project is licensed under the [Your License Name] License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- Special thanks to [Name] for their contribution to [specific module or feature].
-
----
-
-Happy coding! 🚀✨
-```
-
-Feel free to modify the content, structure, or add more details based on your project's requirements.
+This project is licensed under the [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0.html) - see the [LICENSE](LICENSE) file for details.
