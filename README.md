@@ -30,7 +30,7 @@ Before you start, make sure you have:
 
 - ⚙️ **RFID Scanner Connected to USB Port**: Connect an RFID scanner to a USB port for additional identification capabilities.
 
-- 🌡️ **DHT22 Temperature Sensor Wired Up**: Set up the DHT22 sensor to measure temperature.
+- 🌡️ **DHT22 Temperature Sensor Wired Up**: Set up the DHT22 sensor to measure temperature. ( i`m going to be Updating it to a DHT11 that can check humidity and temperature )
 
 
 ## Installation
@@ -38,19 +38,21 @@ Before you start, make sure you have:
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/your-username/your-project.git
+   git clone https://github.com/MaliosDark/PetFinderPi.git
    ```
 
 2. Navigate to the project folder:
 
    ```bash
-   cd your-project
+   cd PetFinderPi
    ```
 
 3. Install dependencies:
+**( when available. Pips for installation are inside start.py )**
 
    ```bash
    pip install -r requirements.txt
+
    ```
 
 ## Usage
@@ -61,7 +63,7 @@ Before you start, make sure you have:
    python start.py
    ```
 
-   The script will detect motion, capture images, classify animals, and predict locations using reinforcement learning.
+### **   The script will detect motion, capture images, classify animals, and predict locations using reinforcement learning. ** ###
 
 2. Monitor the logs:
 
