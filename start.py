@@ -69,14 +69,6 @@ try:
 
                 # Leer el RFID
                 rfid_data = ser.readline().decode('utf-8').strip()
-                # Enviar el RFID al servidor para verificar
-                response = requests.post(server_url + '/verify_rfid', data={'rfid_data': rfid_data})
-
-                if response.status_code == 200:
-                    print("RFID verificado exitosamente en el servidor")
-                else:
-                    print(f"Error al verificar RFID en el servidor: {response.status_code}")
-
 
                 # Identificar el tipo de animal
                 animal_class, confidence = predict_animal(model, image_path)
@@ -98,7 +90,6 @@ try:
                 event_history.append({"timestamp": time.strftime("%Y%m%d%H%M%S"), "evento": "Envío de datos al servidor"})
 
                 print("Datos enviados al servidor")
-
 
                 # Eliminar la imagen después de enviar los datos
                 os.remove(image_path)

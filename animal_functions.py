@@ -1,21 +1,17 @@
 #animal_functions.py
 
-
-
 from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2, preprocess_input, decode_predictions
 from tensorflow.keras.preprocessing import image
 import numpy as np
-import time
+import cv2
 
 # Configuración del modelo de clasificación de animales
 model = MobileNetV2(weights='imagenet')
 
-
-def predict_animal(img_path):
-    # Cargar la imagen y preprocesarla para el modelo
-    img = image.load_img(img_path, target_size=(224, 224))
-    img_array = image.img_to_array(img)
-    img_array = np.expand_dims(img_array, axis=0)
+def predict_animal(frame):
+    # Preprocesar el frame para el modelo
+    frame_resized = cv2.resize(frame, (224, 224))
+    img_array = np.expand_dims(frame_resized, axis=0)
     img_array = preprocess_input(img_array)
 
     # Realizar la predicción
