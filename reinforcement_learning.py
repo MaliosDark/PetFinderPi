@@ -15,6 +15,9 @@ class ReinforcementLearningModel:
         return np.dot(state, self.weights)
 
     def update(self, state, target):
+        """
+        Actualiza el modelo de aprendizaje por refuerzo.
+        """
         prediction = self.predict(state)
         error = target - prediction
         self.weights += self.learning_rate * error * state
@@ -26,15 +29,31 @@ class ReinforcementLearningModel:
             self.learning_rate *= 1.1  # Aumentar la tasa de aprendizaje si el error es pequeño
 
     def save_model(self):
-        with open("rl_model.npy", "wb") as file:
-            np.save(file, {"weights": self.weights, "learning_rate": self.learning_rate})
+        """
+        Guarda el modelo en un archivo.
+        """
+        model_data = {"weights": self.weights, "learning_rate": self.learning_rate}
+        model_folder = "models"
+        os.makedirs(model_folder, exist_ok=True)
+        model_path = os.path.join(model_folder, "rl_model.npy")
+
+        with open(model_path, "wb") as file:
+            np.save(file, model_data)
+        print(f"Modelo guardado en: {model_path}")
 
     def load_model(self):
-        if os.path.exists("rl_model.npy"):
-            with open("rl_model.npy", "rb") as file:
+        """
+        Carga el modelo desde un archivo si existe.
+        """
+        model_folder = "models"
+        model_path = os.path.join(model_folder, "rl_model.npy")
+
+        if os.path.exists(model_path):
+            with open(model_path, "rb") as file:
                 data = np.load(file, allow_pickle=True).item()
                 self.weights = data["weights"]
                 self.learning_rate = data["learning_rate"]
+                print(f"Modelo cargado desde: {model_path}")
 
 # Ejemplo de uso
 if __name__ == "__main__":
