@@ -164,9 +164,9 @@ class ReinforcementLearningModel:
         """
         global tiempo_espera
         if temperature > umbral_temperatura_alta:
-            tiempo_espera = max(tiempo_espera - 1, 5)
+            tiempo_espera = max(tiempo_espera - 1, 1) # Reducir a 1 segundo si la temperatura es alta
         else:
-            tiempo_espera = min(tiempo_espera + 1, 20)
+            tiempo_espera = min(tiempo_espera + 1, 30) # Incrementar hasta 30 segundos si la temperatura es normal
         print(f"Tiempo de espera ajustado a {tiempo_espera} segundos")
 
     def get_public_ip(self):
