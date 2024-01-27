@@ -1,59 +1,81 @@
+
+#start2.py
+
+
 # pip install RPi.GPIO
 # pip install picamera
 # pip install requests
 # pip install pyserial
-# pip install tensorflow
+# pip install opencv-python
 # pip install Adafruit_DHT
 
 
-#start.py
 
-from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2, preprocess_input, decode_predictions
-from tensorflow.keras.preprocessing import image
 import Adafruit_DHT
 import RPi.GPIO as GPIO
 import time
-import picamera
 import requests
 import serial
-import tensorflow as tf
+import base64
+import json
+import logging
 import numpy as np
-import os
-from reinforcement_learning import ReinforcementLearningModel  
-from animal_functions import predict_animal, encode_animal, get_time_of_day
+from reinforcement_learning import ReinforcementLearningModel
 
 # Configuración de pines GPIO
 GPIO.setmode(GPIO.BOARD)
 PIR_PIN = 11
 GPIO.setup(PIR_PIN, GPIO.IN)
 
-# Configuración de la cámara
-camera = picamera.PiCamera()
-
 # Configuración del escáner RFID
 ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
 
-# Configuración del modelo de clasificación de animales
-model = MobileNetV2(weights='imagenet')
-
 # Configuración del sensor de temperatura DHT
-DHT_SENSOR = Adafruit_DHT.DHT22
+DHT_SENSOR = Adafruit_DHT.DHT11
 DHT_PIN = 4  # Ajusta el pin GPIO al que está conectado el sensor
+
+# URL del servidor para enviar datos
+server_url = "http://192.168.68.16:5000/verify_rfid"
 
 # Historial de eventos
 event_history = []
 
-# URL del servidor para enviar datos
-server_url = "http://tu-servidor.com/guardar-datos"
-image_folder = "images"
+# Configuración del registro
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Crea una instancia del modelo de aprendizaje por refuerzo
+rl_model = ReinforcementLearningModel(input_size=4)
+
+# Ajustes dinámicos
+tiempo_espera = 10  # Tiempo de espera inicial entre detecciones
+umbral_temperatura_alta = 30.0  # Umbral de temperatura inicial para considerarla como "alta"
+
+def cleanup_resources():
+    """
+    Función para liberar los recursos GPIO al finalizar o interrumpir el programa.
+    """
+    GPIO.cleanup()
+    save_event_history()
+    rl_model.save_model()
+
+
+def get_public_ip():
+    try:
+        # Utiliza un servicio externo para obtener la IP pública
+        response = requests.get('https://httpbin.org/ip')
+        public_ip = response.json().get('origin', 'Desconocido')
+        return public_ip
+    except Exception as e:
+        logger.error(f"Error al obtener la IP pública: {e}")
+        return 'Desconocido'
+
 
 def save_event_history():
     with open("logs/event_history.txt", "a") as file:
         for event in event_history:
             file.write(f"{event['timestamp']} - {event['evento']}\n")
 
-# Crear una instancia del modelo de aprendizaje por refuerzo
-rl_model = ReinforcementLearningModel(input_size=4)  # Ajusta el tamaño según tus características de entrada
 
 try:
     while True:
@@ -62,59 +84,56 @@ try:
                 # Registro de evento: Detección de movimiento
                 event_history.append({"timestamp": time.strftime("%Y%m%d%H%M%S"), "evento": "Detección de movimiento"})
 
-                # Al detectar movimiento, capturar imagen
-                timestamp = time.strftime("%Y%m%d%H%M%S")
-                image_path = f"{image_folder}{timestamp}.jpg"
-                camera.capture(image_path)
+                # Obtener la IP pública
+                public_ip = get_public_ip()
 
                 # Leer el RFID
                 rfid_data = ser.readline().decode('utf-8').strip()
 
-                # Identificar el tipo de animal
-                animal_class, confidence = predict_animal(model, image_path)
-
                 # Obtener temperatura
                 humidity, temperature = Adafruit_DHT.read_retry(DHT_SENSOR, DHT_PIN)
 
-                # Registro de evento: Identificación de animal
-                event_history.append({"timestamp": time.strftime("%Y%m%d%H%M%S"), "evento": f"Identificación de {animal_class}"})
+                # Verificar si la lectura del sensor de temperatura fue exitosa
+                if humidity is not None and temperature is not None:
+                    # Realizar el resto de las operaciones solo si la lectura fue exitosa
+                    features = np.array([0.0, 0.0, 0.0, 0.0])  # Ajusta según tus características
+                    prediction = rl_model.predict(features)
 
-                # Registro de evento: Detección de temperatura
-                event_history.append({"timestamp": time.strftime("%Y%m%d%H%M%S"), "evento": f"Detección de temperatura: {temperature}°C"})
+                    # Actualizar el modelo de aprendizaje por refuerzo
+                    target = 0.9  # Ajusta según tus necesidades
+                    rl_model.update(features, target)
 
-                # Enviar datos al servidor
-                payload = {"animal": animal_class, "imagen": image_path, "rfid": rfid_data, "confidence": confidence, "temperatura": temperature}
-                response = requests.post(server_url, data=payload)
+                    # Enviar datos al servidor
+                    payload = {
+                        "rfid": rfid_data,
+                        "temperature": temperature,
+                        "prediction": prediction,
+                        "public_ip": public_ip  # Agrega la IP pública al payload
+                    }
+                    response = requests.post(server_url, json=payload)
 
-                # Registro de evento: Envío de datos al servidor
-                event_history.append({"timestamp": time.strftime("%Y%m%d%H%M%S"), "evento": "Envío de datos al servidor"})
+                    # Registro de evento: Envío de datos al servidor
+                    event_history.append({"timestamp": time.strftime("%Y%m%d%H%M%S"), "evento": "Envío de datos al servidor"})
 
-                print("Datos enviados al servidor")
+                    print("Datos enviados al servidor")
 
-                # Eliminar la imagen después de enviar los datos
-                os.remove(image_path)
-                print(f"Imagen {image_path} eliminada")
+                    # Ajustes dinámicos
+                    if temperature > umbral_temperatura_alta:
+                        tiempo_espera = max(tiempo_espera - 1, 5)  # Reducir el tiempo de espera si la temperatura es alta
+                    else:
+                        tiempo_espera = min(tiempo_espera + 1, 20)  # Aumentar el tiempo de espera si la temperatura es normal
 
-                time.sleep(10)  # Esperar 10 segundos antes de la siguiente detección
-
-                # Obtener características para el modelo de aprendizaje por refuerzo
-                animal_encoded = encode_animal(animal_class)
-                time_of_day = get_time_of_day()
-                features = np.array([[confidence, temperature, animal_encoded[0][0], time_of_day]])
-
-                # Realizar predicción con el modelo de aprendizaje por refuerzo
-                prediction = rl_model.predict(features.reshape(1, -1))
-
-                # Actualizar el modelo de aprendizaje por refuerzo según sea necesario
-                target = 0.9  # Ajusta según tus necesidades
-                rl_model.update(features.reshape(1, -1), target)
-
-                # Registro de evento: Predicción de ubicación
-                event_history.append({"timestamp": time.strftime("%Y%m%d%H%M%S"), "evento": f"Predicción de ubicación: {prediction}"})
-
+                    print(f"Tiempo de espera ajustado a {tiempo_espera} segundos")
+                else:
+                    # Si la lectura del sensor de temperatura no fue exitosa, puedes manejarlo de alguna manera
+                    logger.error("Error al leer el sensor de temperatura")
+                time.sleep(tiempo_espera)  # Esperar el tiempo ajustado antes de la siguiente detección
+                
         except Exception as e:
-            print(f"Error: {e}")
+            logger.error(f"Error: {e}")
 
+except KeyboardInterrupt:
+    cleanup_resources()
 except KeyboardInterrupt:
     GPIO.cleanup()
     save_event_history()
