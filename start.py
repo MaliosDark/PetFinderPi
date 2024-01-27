@@ -6,8 +6,9 @@
 # pip install picamera
 # pip install requests
 # pip install pyserial
-# pip install opencv-python
+# pip install numpy
 # pip install Adafruit_DHT
+# sudo apt-get install libopenblas-base
 
 
 
@@ -28,7 +29,7 @@ PIR_PIN = 11
 GPIO.setup(PIR_PIN, GPIO.IN)
 
 # Configuración del escáner RFID
-ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
+##ser = serial.Serial('/dev/ttyUSB0', 9600, timeout=1)
 
 # Configuración del sensor de temperatura DHT
 DHT_SENSOR = Adafruit_DHT.DHT11
@@ -60,14 +61,14 @@ def cleanup_resources():
     rl_model.save_model()
 
 
-def get_public_ip():
+def get_public_ip(self):
     try:
-        # Utiliza un servicio externo para obtener la IP pública
-        response = requests.get('https://httpbin.org/ip')
-        public_ip = response.json().get('origin', 'Desconocido')
+        # Utiliza api.ipify.org para obtener la IP pública
+        response = requests.get('https://api.ipify.org?format=json')
+        public_ip = response.json().get('ip', 'Desconocido')
         return public_ip
     except Exception as e:
-        logger.error(f"Error al obtener la IP pública: {e}")
+        print(f"Error al obtener la IP pública: {e}")
         return 'Desconocido'
 
 
@@ -88,7 +89,7 @@ try:
                 public_ip = get_public_ip()
 
                 # Leer el RFID
-                rfid_data = ser.readline().decode('utf-8').strip()
+                ##rfid_data = ser.readline().decode('utf-8').strip()
 
                 # Obtener temperatura
                 humidity, temperature = Adafruit_DHT.read_retry(DHT_SENSOR, DHT_PIN)
@@ -105,7 +106,7 @@ try:
 
                     # Enviar datos al servidor
                     payload = {
-                        "rfid": rfid_data,
+                        ##"rfid": rfid_data,
                         "temperature": temperature,
                         "prediction": prediction,
                         "public_ip": public_ip  # Agrega la IP pública al payload

@@ -1,4 +1,8 @@
 # reinforcement_learning.py
+# Autor: Andryu Schittone
+# Descripción: Implementación de un modelo de aprendizaje por refuerzo para el sistema PetFinderPi.
+# Licencia: GPL3
+# Versión: 1.0
 
 import numpy as np
 import os
@@ -8,6 +12,8 @@ import RPi.GPIO as GPIO
 import time
 import requests
 import serial
+
+
 
 class ReinforcementLearningModel:
     def __init__(self, input_size):
@@ -144,6 +150,7 @@ class ReinforcementLearningModel:
         Envía los datos al servidor y registra el evento.
         """
         try:
+            payload["public_ip"] = self.get_public_ip()  # Agrega la IP pública al payload
             response = requests.post(server_url, json=payload)
             self.event_history.append({"timestamp": time.strftime("%Y%m%d%H%M%S"), "evento": "Envío de datos al servidor"})
             print("Datos enviados al servidor")
@@ -164,9 +171,9 @@ class ReinforcementLearningModel:
 
     def get_public_ip(self):
         try:
-            # Utiliza un servicio externo para obtener la IP pública
-            response = requests.get('https://httpbin.org/ip')
-            public_ip = response.json().get('origin', 'Desconocido')
+            # Utiliza api.ipify.org para obtener la IP pública
+            response = requests.get('https://api.ipify.org?format=json')
+            public_ip = response.json().get('ip', 'Desconocido')
             return public_ip
         except Exception as e:
             print(f"Error al obtener la IP pública: {e}")
@@ -180,6 +187,7 @@ if __name__ == "__main__":
     server_url = "http://192.168.68.16:5000/verify_rfid"
     tiempo_espera = 10
     umbral_temperatura_alta = 30.0
+    
 
     model = ReinforcementLearningModel(input_size=4)  # Ajusta el tamaño según tus características de entrada
     model.main_loop(PIR_PIN, DHT_SENSOR, server_url, tiempo_espera, umbral_temperatura_alta)
