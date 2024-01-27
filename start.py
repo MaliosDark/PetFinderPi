@@ -1,5 +1,5 @@
 
-#start2.py
+#start.py
 
 
 # pip install RPi.GPIO
@@ -21,7 +21,8 @@ import base64
 import json
 import logging
 import numpy as np
-from reinforcement_learning import ReinforcementLearningModel
+from reinforcement_learning import ReinforcementLearningModel 
+
 
 # Configuración de pines GPIO
 GPIO.setmode(GPIO.BOARD)
@@ -49,10 +50,12 @@ logger = logging.getLogger(__name__)
 rl_model = ReinforcementLearningModel(input_size=4)
 
 # Ajustes dinámicos
-tiempo_espera = 10  # Tiempo de espera inicial entre detecciones
+tiempo_espera = 1  # Tiempo de espera inicial entre detecciones
 umbral_temperatura_alta = 30.0  # Umbral de temperatura inicial para considerarla como "alta"
 
 def cleanup_resources():
+    global umbral_temperatura_alta  
+    global tiempo_espera  
     """
     Función para liberar los recursos GPIO al finalizar o interrumpir el programa.
     """
@@ -61,7 +64,7 @@ def cleanup_resources():
     rl_model.save_model()
 
 
-def get_public_ip(self):
+def get_public_ip():
     try:
         # Utiliza api.ipify.org para obtener la IP pública
         response = requests.get('https://api.ipify.org?format=json')
@@ -77,13 +80,20 @@ def save_event_history():
         for event in event_history:
             file.write(f"{event['timestamp']} - {event['evento']}\n")
 
+# Ajustes dinámicos
+tiempo_espera = 1  # Tiempo de espera inicial entre detecciones
+umbral_temperatura_alta = 30.0  # Umbral de temperatura inicial para considerarla como "alta"
+umbral_temperatura_alta_local = umbral_temperatura_alta  # Mover esta línea aquí
 
 try:
     while True:
         try:
+            tiempo_espera_local = tiempo_espera
+            
             if GPIO.input(PIR_PIN):
                 # Registro de evento: Detección de movimiento
                 event_history.append({"timestamp": time.strftime("%Y%m%d%H%M%S"), "evento": "Detección de movimiento"})
+                print("Detección de movimiento")
 
                 # Obtener la IP pública
                 public_ip = get_public_ip()
@@ -96,6 +106,16 @@ try:
 
                 # Verificar si la lectura del sensor de temperatura fue exitosa
                 if humidity is not None and temperature is not None:
+                    # Ajustes dinámicos
+                    motion_detected = True  # Puedes ajustar esto dependiendo de cómo detectes el movimiento
+                    rl_model.adjust_dynamic_settings(temperature, motion_detected)
+
+                    print(f"Tiempo de espera ajustado a {tiempo_espera} segundos")
+                    time.sleep(tiempo_espera)  # Esperar el tiempo ajustado antes de la siguiente detección
+
+                    print(f"Tiempo de espera ajustado a {tiempo_espera} segundos")
+                    time.sleep(tiempo_espera)  # Esperar el tiempo ajustado antes de la siguiente detección
+
                     # Realizar el resto de las operaciones solo si la lectura fue exitosa
                     features = np.array([0.0, 0.0, 0.0, 0.0])  # Ajusta según tus características
                     prediction = rl_model.predict(features)
@@ -109,7 +129,8 @@ try:
                         ##"rfid": rfid_data,
                         "temperature": temperature,
                         "prediction": prediction,
-                        "public_ip": public_ip  # Agrega la IP pública al payload
+                        "public_ip": public_ip,
+                        "humidity": humidity,
                     }
                     response = requests.post(server_url, json=payload)
 
@@ -120,21 +141,24 @@ try:
 
                     # Ajustes dinámicos
                     if temperature > umbral_temperatura_alta:
-                        tiempo_espera = max(tiempo_espera - 1, 5)  # Reducir el tiempo de espera si la temperatura es alta
+                        tiempo_espera = max(tiempo_espera - 1, 1)  # Reducir el tiempo de espera si la temperatura es alta
                     else:
-                        tiempo_espera = min(tiempo_espera + 1, 20)  # Aumentar el tiempo de espera si la temperatura es normal
+                        tiempo_espera = min(tiempo_espera + 1, 30)  # Aumentar el tiempo de espera si la temperatura es normal
 
                     print(f"Tiempo de espera ajustado a {tiempo_espera} segundos")
+                    print(f"Tiempo de espera ajustado a {tiempo_espera_local} segundos")  # Utiliza la variable local
+                    time.sleep(tiempo_espera_local)  # Utiliza la variable local antes de la siguiente detección
                 else:
                     # Si la lectura del sensor de temperatura no fue exitosa, puedes manejarlo de alguna manera
                     logger.error("Error al leer el sensor de temperatura")
+                    tiempo_espera = tiempo_espera_local
+
                 time.sleep(tiempo_espera)  # Esperar el tiempo ajustado antes de la siguiente detección
                 
         except Exception as e:
             logger.error(f"Error: {e}")
 
 except KeyboardInterrupt:
-    cleanup_resources()
-except KeyboardInterrupt:
     GPIO.cleanup()
+    cleanup_resources()
     save_event_history()

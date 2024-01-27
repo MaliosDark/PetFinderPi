@@ -13,6 +13,10 @@ import time
 import requests
 import serial
 
+# Ajustes dinámicos
+tiempo_espera = 1  # Tiempo de espera inicial entre detecciones
+umbral_temperatura_alta = 30.0  # Umbral de temperatura inicial para considerarla como "alta"
+
 
 
 class ReinforcementLearningModel:
@@ -22,6 +26,7 @@ class ReinforcementLearningModel:
         self.model_folder = "models"
         self.model_path = os.path.join(self.model_folder, "rl_model.json")
         self.event_history = []
+        
 
         # Cargar el modelo previo si existe
         self.load_model()
@@ -118,6 +123,9 @@ class ReinforcementLearningModel:
         else:
             self.handle_failed_sensor_read()
 
+        # Considerar la detección de movimiento al ajustar el tiempo de espera
+        self.adjust_dynamic_settings(temperature, motion_detected=True)
+
         time.sleep(tiempo_espera)
 
     def handle_successful_sensor_read(self, humidity, temperature, rfid_data, public_ip, server_url):
@@ -145,29 +153,17 @@ class ReinforcementLearningModel:
         """
         print("Error al leer el sensor de temperatura")
 
-    def send_data_to_server(self, payload, server_url):
-        """
-        Envía los datos al servidor y registra el evento.
-        """
-        try:
-            payload["public_ip"] = self.get_public_ip()  # Agrega la IP pública al payload
-            response = requests.post(server_url, json=payload)
-            self.event_history.append({"timestamp": time.strftime("%Y%m%d%H%M%S"), "evento": "Envío de datos al servidor"})
-            print("Datos enviados al servidor")
+    def adjust_dynamic_settings(self, temperature, motion_detected):
+        global tiempo_espera, umbral_temperatura_alta
 
-        except Exception as e:
-            print(f"Error al enviar datos al servidor: {e}")
-
-    def adjust_dynamic_settings(self, temperature):
-        """
-        Ajusta dinámicamente la configuración basada en la temperatura.
-        """
-        global tiempo_espera
-        if temperature > umbral_temperatura_alta:
-            tiempo_espera = max(tiempo_espera - 1, 1) # Reducir a 1 segundo si la temperatura es alta
+        if temperature > umbral_temperatura_alta and motion_detected:
+            tiempo_espera = max(tiempo_espera - 1, 1)  # Reducir a 1 segundo si la temperatura es alta y hay movimiento
+            print(f"Tiempo de espera ajustado a {tiempo_espera} segundos debido a temperatura alta y movimiento")
         else:
-            tiempo_espera = min(tiempo_espera + 1, 30) # Incrementar hasta 30 segundos si la temperatura es normal
-        print(f"Tiempo de espera ajustado a {tiempo_espera} segundos")
+            tiempo_espera = max(tiempo_espera + 1, 30)  # Incrementar hasta 30 segundos si la temperatura es normal o no hay movimiento
+            print(f"Tiempo de espera ajustado a {tiempo_espera} segundos debido a temperatura normal o falta de movimiento")
+
+        print(f"Umbral de temperatura alta ajustado a {umbral_temperatura_alta}")
 
     def get_public_ip(self):
         try:
@@ -185,9 +181,8 @@ if __name__ == "__main__":
     DHT_SENSOR = Adafruit_DHT.DHT11
     DHT_PIN = 4
     server_url = "http://192.168.68.16:5000/verify_rfid"
-    tiempo_espera = 10
+    tiempo_espera = 1
     umbral_temperatura_alta = 30.0
-    
 
     model = ReinforcementLearningModel(input_size=4)  # Ajusta el tamaño según tus características de entrada
     model.main_loop(PIR_PIN, DHT_SENSOR, server_url, tiempo_espera, umbral_temperatura_alta)
